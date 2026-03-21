@@ -37,6 +37,7 @@ class SimulationCanvas(QWidget):
         self._draw_planned_path(painter)
         self._draw_object(painter)
         self._draw_robot(painter)
+        self._draw_event_overlay(painter)
 
     def _draw_grid(self, painter: QPainter) -> None:
         cell = self.environment.cell_size
@@ -71,20 +72,33 @@ class SimulationCanvas(QWidget):
     def _draw_planned_path(self, painter: QPainter) -> None:
         if not self.robot.current_path:
             return
-        painter.setPen(QPen(QColor("#f59e0b"), 3, Qt.DashLine))
-        points = [self._cell_center(self.robot.position)] + [self._cell_center(cell) for cell in self.robot.current_path]
+        points = [self._float_cell_center(*self.robot.render_position())] + [self._cell_center(cell) for cell in self.robot.current_path]
+        painter.setPen(QPen(QColor(245, 158, 11, 70), 9, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        for start, end in zip(points, points[1:]):
+            painter.drawLine(start, end)
+        painter.setPen(QPen(QColor("#f59e0b"), 4, Qt.DashLine, Qt.RoundCap, Qt.RoundJoin))
         for start, end in zip(points, points[1:]):
             painter.drawLine(start, end)
 
     def _draw_object(self, painter: QPainter) -> None:
-        object_cell = self.robot.position if self.robot.carrying_object else self.environment.object_position
-        rect = self._cell_rect(object_cell).adjusted(14, 14, -14, -14)
+        if self.robot.carrying_object:
+            x, y = self.robot.render_position()
+            rect = self._float_cell_rect(x, y).adjusted(14, 14, -14, -14)
+            painter.setBrush(QColor(249, 115, 22, 70))
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(rect.adjusted(-10, -10, 10, 10))
+        else:
+            rect = self._cell_rect(self.environment.object_position).adjusted(14, 14, -14, -14)
         painter.setBrush(QColor("#f97316"))
         painter.setPen(QPen(QColor("#c2410c"), 2))
         painter.drawEllipse(rect)
+        if self.robot.carrying_object:
+            painter.setPen(QPen(QColor("#fb923c"), 2))
+            painter.drawText(rect.adjusted(-10, 28, 10, 44), Qt.AlignCenter, "Attached")
 
     def _draw_robot(self, painter: QPainter) -> None:
-        body_rect = self._cell_rect(self.robot.position).adjusted(8, 8, -8, -8)
+        render_x, render_y = self.robot.render_position()
+        body_rect = self._float_cell_rect(render_x, render_y).adjusted(8, 8, -8, -8)
         painter.setBrush(QColor("#1d4ed8"))
         painter.setPen(QPen(QColor("#0f172a"), 2))
         painter.drawRoundedRect(body_rect, 12, 12)
@@ -123,6 +137,26 @@ class SimulationCanvas(QWidget):
         painter.setPen(QPen(grip_color, 4))
         painter.drawLine(QPointF(arm_mid_x + 16, arm_mid_y), QPointF(arm_mid_x + 22, arm_mid_y - 6))
         painter.drawLine(QPointF(arm_mid_x + 16, arm_mid_y), QPointF(arm_mid_x + 22, arm_mid_y + 6))
+        if self.robot.carrying_object:
+            painter.setPen(QPen(QColor(249, 115, 22, 160), 2, Qt.DashLine))
+            painter.drawLine(QPointF(arm_mid_x + 18, arm_mid_y), self._float_cell_center(render_x, render_y))
+
+    def _draw_event_overlay(self, painter: QPainter) -> None:
+        if self.robot.effect_ticks <= 0 or not self.robot.effect_label:
+            return
+        label_rect = QRectF(26, 26, 180, 36)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(15, 23, 42, 210))
+        painter.drawRoundedRect(label_rect, 12, 12)
+        painter.setPen(QColor("#f8fafc"))
+        painter.drawText(label_rect, Qt.AlignCenter, self.robot.effect_label)
+        if self.robot.effect_label == "Picked":
+            focus_rect = self._float_cell_rect(*self.robot.render_position()).adjusted(4, 4, -4, -4)
+        else:
+            focus_rect = self._cell_rect(self.environment.goal_position).adjusted(4, 4, -4, -4)
+        painter.setPen(QPen(QColor(250, 204, 21, 220), 4))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(focus_rect, 14, 14)
 
     def _cell_rect(self, cell: GridPoint) -> QRectF:
         x, y = cell
@@ -132,8 +166,17 @@ class SimulationCanvas(QWidget):
     def _cell_center(self, cell: GridPoint) -> QPointF:
         return self._cell_rect(cell).center()
 
+    def _float_cell_rect(self, x: float, y: float) -> QRectF:
+        size = self.environment.cell_size
+        return QRectF(20 + x * size, 20 + y * size, size, size)
+
+    def _float_cell_center(self, x: float, y: float) -> QPointF:
+        return self._float_cell_rect(x, y).center()
+
 
 class SimulatorWindow(QMainWindow):
+    TICK_MS = 40
+    TICK_SECONDS = TICK_MS / 1000.0
     STATUSES = {
         "idle",
         "moving_to_object",
@@ -172,7 +215,7 @@ class SimulatorWindow(QMainWindow):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tick)
-        self.timer.start(80)
+        self.timer.start(self.TICK_MS)
 
         self.append_log("Simulator ready. Waiting for UDP commands.")
 
@@ -202,7 +245,8 @@ class SimulatorWindow(QMainWindow):
 
         details = QLabel(
             "Commands: move_forward, move_backward, turn_left, turn_right, stop, speed:<value>, "
-            "arm_up, arm_down, grip_open, grip_close, obstacle_on, obstacle_off, auto_pick_and_place"
+            "arm_up, arm_down, grip_open, grip_close, obstacle_on, obstacle_off, auto_pick_and_place, "
+            "reset_simulation, joystick:<x>:<y>"
         )
         details.setWordWrap(True)
         right_panel.addWidget(details)
@@ -215,9 +259,12 @@ class SimulatorWindow(QMainWindow):
         self.log_panel.appendPlainText(message)
 
     def handle_command(self, command: str) -> None:
-        self.append_log(f"Received: {command}")
+        if not command.startswith("joystick:"):
+            self.append_log(f"Received: {command}")
         if command.startswith("speed:"):
             self._handle_speed(command)
+        elif command.startswith("joystick:"):
+            self._handle_joystick(command)
         elif command == "move_forward":
             self._handle_manual_move((0, -1), "N")
         elif command == "move_backward":
@@ -228,6 +275,7 @@ class SimulatorWindow(QMainWindow):
             self._handle_manual_move((1, 0), "E")
         elif command == "stop":
             self.robot.cancel_auto()
+            self.robot.set_joystick_vector(0.0, 0.0)
             self._set_status("idle")
         elif command == "arm_up":
             self.robot.arm_raised = True
@@ -249,6 +297,8 @@ class SimulatorWindow(QMainWindow):
             self.append_log("Obstacle mode disabled.")
         elif command == "auto_pick_and_place":
             self._start_auto_sequence()
+        elif command == "reset_simulation":
+            self._reset_simulation()
         self.canvas.update()
 
     def _handle_speed(self, command: str) -> None:
@@ -262,6 +312,7 @@ class SimulatorWindow(QMainWindow):
 
     def _handle_manual_move(self, delta: GridPoint, heading: str) -> None:
         self.robot.cancel_auto()
+        self.robot.set_joystick_vector(0.0, 0.0)
         self.robot.heading = heading
         destination = (self.robot.position[0] + delta[0], self.robot.position[1] + delta[1])
         if not self.environment.in_bounds(destination):
@@ -273,10 +324,35 @@ class SimulatorWindow(QMainWindow):
         self.robot.manual_move(destination)
         self._set_status("idle")
 
+    def _handle_joystick(self, command: str) -> None:
+        parts = command.split(":")
+        if len(parts) != 3:
+            return
+        try:
+            x = float(parts[1])
+            y = float(parts[2])
+        except ValueError:
+            return
+        self.robot.cancel_auto()
+        self.robot.set_joystick_vector(x, y)
+        if abs(x) > abs(y):
+            self.robot.heading = "E" if x > 0 else "W"
+        elif abs(y) > 0.05:
+            self.robot.heading = "S" if y > 0 else "N"
+        if not self.robot.joystick_active():
+            self._set_status("idle")
+
+    def _reset_simulation(self) -> None:
+        self.environment.reset()
+        self.robot.reset()
+        self._set_status("idle")
+        self.append_log("Simulation reset to the initial state.")
+
     def _start_auto_sequence(self) -> None:
         if not self.robot.auto_active and self.robot.status == "completed" and not self.robot.carrying_object:
             self.append_log("Resetting object to its original pickup position for a new run.")
             self.environment.object_position = (10, 2)
+        self.robot.set_joystick_vector(0.0, 0.0)
         self.robot.auto_active = True
         self.robot.arm_raised = False
         self.robot.gripper_closed = False
@@ -311,6 +387,12 @@ class SimulatorWindow(QMainWindow):
         return path
 
     def _tick(self) -> None:
+        if self.robot.effect_ticks > 0:
+            self.robot.effect_ticks -= 1
+        if self.robot.joystick_active() and not self.robot.current_path and self.robot.phase_ticks_remaining == 0:
+            self._tick_joystick_motion()
+            self.canvas.update()
+            return
         if self.robot.phase_ticks_remaining > 0:
             self.robot.phase_ticks_remaining -= 1
             if self.robot.phase_ticks_remaining == 0:
@@ -323,7 +405,7 @@ class SimulatorWindow(QMainWindow):
             return
 
         steps_per_second = max(1.0, self.robot.speed_percent / 25.0)
-        self.robot.step_progress += steps_per_second * 0.08
+        self.robot.step_progress += steps_per_second * self.TICK_SECONDS
         if self.robot.step_progress < 1.0:
             return
         self.robot.step_progress = 0.0
@@ -337,6 +419,26 @@ class SimulatorWindow(QMainWindow):
             self._on_target_reached()
 
         self.canvas.update()
+
+    def _tick_joystick_motion(self) -> None:
+        vx, vy = self.robot.joystick_vector
+        speed_cells_per_second = max(0.6, self.robot.speed_percent / 28.0)
+        next_x = self.robot.manual_position[0] + vx * speed_cells_per_second * self.TICK_SECONDS
+        next_y = self.robot.manual_position[1] + vy * speed_cells_per_second * self.TICK_SECONDS
+
+        next_x = min(max(next_x, 0.0), self.environment.grid_width - 1.0)
+        next_y = min(max(next_y, 0.0), self.environment.grid_height - 1.0)
+
+        next_cell = (int(round(next_x)), int(round(next_y)))
+        if next_cell in self.environment.blocked_cells():
+            self.robot.set_joystick_vector(0.0, 0.0)
+            self.append_log("Joystick motion stopped by obstacle.")
+            self._set_status("idle")
+            return
+
+        self.robot.manual_position = (next_x, next_y)
+        self.robot.sync_grid_from_manual()
+        self._set_status("idle")
 
     def _advance_auto_phase(self) -> None:
         if self.robot.status == "picking":
@@ -369,6 +471,7 @@ class SimulatorWindow(QMainWindow):
         self.robot.carrying_object = True
         self.robot.gripper_closed = True
         self.robot.arm_raised = True
+        self.robot.trigger_effect("Picked")
         self._set_status("carrying")
         self.append_log("Object picked successfully.")
 
@@ -377,10 +480,14 @@ class SimulatorWindow(QMainWindow):
         self.robot.gripper_closed = False
         self.robot.arm_raised = False
         self.environment.object_position = self.environment.goal_position
+        self.robot.trigger_effect("Released")
         self.append_log("Object released in goal zone.")
 
     def _set_status(self, status: str) -> None:
         if status not in self.STATUSES:
+            return
+        if self.robot.status == status:
+            self.status_label.setText(f"State: {status}")
             return
         self.robot.set_status(status)
         self.status_label.setText(f"State: {status}")

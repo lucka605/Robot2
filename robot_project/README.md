@@ -1,23 +1,26 @@
 # Smart Mobile Robot Controller and Pick-and-Place Simulator
 
-Smart Mobile Robot Controller and Pick-and-Place Simulator is a presentation-ready Python robotics demo with two connected desktop applications: a modern controller dashboard and a 2D robot simulator. The controller sends UDP commands to the simulator, and the simulator executes manual robot actions or a full autonomous pick-and-place sequence with A* path planning and obstacle avoidance.
+A compact Python robotics demo built for presentations, coursework, and local experimentation. The project includes two desktop applications:
+
+- a controller dashboard for sending robot commands over UDP
+- a 2D simulator that visualizes motion, path planning, obstacle avoidance, and a full pick-and-place sequence
+
+The result is intentionally simple, visual, and easy to run while still showing core robotics ideas clearly.
 
 ## GitHub Project Description
 
-Modern Python robotics demo featuring a UDP-based controller dashboard, 2D mobile robot simulator, A* path planning, obstacle avoidance, and a complete pick-and-place workflow.
+Presentation-ready Python robotics demo with a UDP controller dashboard, 2D robot simulator, A* path planning, obstacle avoidance, and an autonomous pick-and-place workflow.
 
 ## Features
 
-- Dual-application architecture: controller GUI and simulator GUI
-- UDP socket communication between both apps
-- Modern robot-control dashboard with connect section, movement controls, speed slider, joystick pad, arm controls, and gripper controls
-- Obstacle mode toggle from the controller with live simulator updates
-- 2D environment with robot, arm, object, drop zone, and optional obstacles
-- A* path planning on a grid with path visualization
-- Autonomous pick-and-place state machine: `idle -> moving_to_object -> picking -> carrying -> moving_to_goal -> releasing -> completed`
-- Manual movement commands for quick testing during a demo
-- Status and event log panel in the simulator
-- Modular code structure so other planning algorithms can be added later
+- Clean two-window demo: controller on one side, simulator on the other
+- UDP-based command flow for local robot-control testing
+- Dashboard with connection settings, movement controls, joystick pad, speed slider, arm controls, gripper controls, and obstacle toggle
+- 2D simulator with robot, object, goal zone, optional obstacles, path overlay, and status log
+- A* path planning on a grid for obstacle-aware navigation
+- Autonomous state flow: `idle -> moving_to_object -> picking -> carrying -> moving_to_goal -> releasing -> completed`
+- Manual controls for quick interactive demos
+- Modular project layout so new planners or behaviors can be added later
 
 ## Architecture
 
@@ -72,8 +75,10 @@ The controller uses a UDP client and sends plain-text commands such as:
 - `obstacle_on`
 - `obstacle_off`
 - `auto_pick_and_place`
+- `reset_simulation`
+- `joystick:<x>:<y>`
 
-Because UDP is lightweight and connectionless, it works well for a local interactive robotics demo. The controller "connect" action stores the destination IP and port, and every UI action sends one datagram to the simulator.
+Because UDP is lightweight and connectionless, it works well for a local interactive robotics demo. The controller "Connect" action stores the destination IP and port, and each button press sends one datagram to the simulator. The joystick is handled a little differently: while it is held, the controller streams small `joystick:<x>:<y>` updates so the simulator can move smoothly using the selected speed.
 
 ## How A* Obstacle Avoidance Works
 
@@ -84,7 +89,7 @@ The simulator models the environment as a 2D occupancy grid. Each cell is either
 3. If obstacle mode is enabled, obstacle cells are marked as blocked and the planner routes around them.
 4. The current planned path is drawn in the simulator to make the decision process visible during the presentation.
 
-The planning logic is isolated in `algorithms/astar.py`, so you can add Dijkstra, RRT, or other planners later without restructuring the whole project.
+The planning logic is isolated in `algorithms/astar.py`, so you can add Dijkstra, RRT, or other planners later without changing the UI or simulator architecture.
 
 ## Install Dependencies
 
@@ -117,12 +122,12 @@ Use the default host `127.0.0.1` and port `5005`, click `Connect`, then test man
 
 ## Presentation-Friendly Feature List
 
-- Clean control dashboard with fast UDP command transmission
-- Interactive manual drive controls and joystick-style pad
+- Clean controller dashboard with grouped controls and live status feedback
+- Smooth robot movement in the simulator for presentation-friendly visuals
+- Clear planned path overlay and traveled path history
 - Toggleable obstacle mode for live path-planning demonstrations
-- Autonomous pick-and-place routine with visible state transitions
-- Visual robot path history and current A* planned route
-- Symbolic arm and gripper animation suitable for teaching and demos
+- Object pickup and release highlighted visually during the autonomous task
+- Symbolic arm and gripper animation that is simple, readable, and stable
 
 ## Demo Flow
 
@@ -132,12 +137,12 @@ For a clean 2-minute presentation:
 2. Start the controller and click `Connect`.
 3. Toggle `Obstacle Mode: ON/OFF` to show obstacles appearing in the simulator.
 4. Move the robot manually with the direction buttons or joystick pad.
-5. Press `Auto Pick & Place` to trigger the full task: robot navigates to object, picks it, replans to the goal, avoids obstacles, and releases the object.
+5. Press `Auto Pick & Place` to trigger the full task: the robot moves to the object, picks it up, replans to the goal, avoids obstacles, and releases it.
 6. Highlight the live path overlay and state transitions in the log.
 
 ## Future Improvements
 
-- Add diagonal movement and smoother kinematic motion
+- Add diagonal movement and richer kinematic motion
 - Add SLAM-style map updates and sensor simulation
 - Support multiple objects and multiple goal zones
 - Add planner selection from the controller

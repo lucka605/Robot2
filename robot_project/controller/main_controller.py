@@ -25,13 +25,19 @@ class ControllerApp:
         self.client.configure(host, port)
         self.window.set_connected(True, host, port)
         self.window.append_log(f"UDP target set to {host}:{port}")
+        self.window.show_status(f"Connected target set to {host}:{port}")
 
     def handle_command(self, command: str) -> None:
         try:
             self.client.send(command)
-            self.window.append_log(f"Sent command: {command}")
+            if command.startswith("joystick:"):
+                self.window.show_status("Joystick streaming active.")
+            else:
+                self.window.append_log(f"Sent command: {command}")
+                self.window.show_status(f"Last command: {command}")
         except OSError as exc:
             self.window.append_log(f"Send failed: {exc}")
+            self.window.show_status("Send failed. Check the simulator and endpoint.")
 
 
 def main() -> int:

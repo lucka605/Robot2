@@ -17,7 +17,13 @@ class EnvironmentModel:
     obstacles: Set[GridPoint] = field(default_factory=set)
 
     def __post_init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        self.object_position = (10, 2)
+        self.goal_position = (11, 7)
         self.obstacles = self._default_obstacles()
+        self.obstacle_mode = False
 
     def set_obstacle_mode(self, enabled: bool) -> None:
         self.obstacle_mode = enabled
