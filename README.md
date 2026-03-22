@@ -213,19 +213,16 @@ This project is designed to present programming and software design ability rath
 - clear communication between components
 - algorithm integration in an interactive application
 
-## Planned Media
+## Demo
 
-The following sections are intentionally left ready for later additions:
+### Simulator
+![Simulator](images/sim.png)
 
-### Screenshots
+### Controller
+![Controller](images/controller.png)
 
-- Controller dashboard
-- Simulator environment
-- Autonomous pick-and-place sequence
-
-### Demo Video
-
-Demo link: `TBD`
+### Robot Movement
+![Robot](images/moving.gif)
 
 ## Future Work
 
