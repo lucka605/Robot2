@@ -1,148 +1,198 @@
 # Smart Mobile Robot Controller and Pick-and-Place Simulator
 
-A Python robotics software project that combines a desktop control interface with a 2D robot simulator. The system demonstrates core software engineering skills relevant to robotics: GUI development, UDP-based inter-process communication, modular code organization, state-driven behavior, and grid-based path planning with A*.
+> A modular robotics simulation system demonstrating GUI-based control, UDP communication, and autonomous path planning using A*.
 
-This repository was prepared as a programming portfolio project and is intended to be understandable, runnable locally, and easy to extend.
+## Demo
+
+![Robot Demo](images/moving.gif)
+
+<p align="center">
+  <img src="images/sim.png" width="45%" />
+  <img src="images/controller.png" width="45%" />
+</p>
+
+---
 
 ## Project Overview
 
-The project contains two PySide6 desktop applications:
+This project is a Python-based robotics software system that combines a desktop control interface with a 2D robot simulator.
 
-- a **controller application** that acts as an operator dashboard
-- a **simulator application** that visualizes a mobile robot, a mounted arm, a pickable object, a goal zone, and optional obstacles
+It demonstrates key software engineering concepts applied to robotics:
 
-The controller sends UDP commands to the simulator. The simulator can respond to manual commands or execute an autonomous pick-and-place sequence:
+* GUI development using PySide6
+* UDP-based inter-process communication
+* Modular architecture and clean code organization
+* State-driven robot behavior
+* Grid-based path planning using A*
 
-1. move from the start position toward the object
-2. pick the object
-3. plan a path to the goal using A*
-4. avoid obstacles when obstacle mode is enabled
-5. deliver and release the object at the goal zone
+The system is designed as a portfolio project to be clear, interactive, and easily extendable.
 
-The current implementation is intentionally compact and presentation-friendly. It is not a physics simulator; instead, it focuses on clear software structure and interactive visualization.
+---
+
+## System Architecture
+
+The project consists of two independent desktop applications:
+
+* **Controller Application**
+  Acts as an operator dashboard for sending commands and monitoring system behavior.
+
+* **Simulator Application**
+  Visualizes a mobile robot, environment, objects, and executes commands or autonomous behaviors.
+
+Communication between both components is handled via UDP sockets.
+
+---
 
 ## Features
 
-- Dual-application architecture with separate controller and simulator GUIs
-- UDP communication between the controller and simulator
-- Modern PySide6 controller dashboard with:
-  connect/disconnect workflow, movement buttons, joystick control, speed slider, arm controls, gripper controls, obstacle toggle, simulator reset, and event log
-- Simulator with:
-  2D occupancy-grid environment, robot visualization, object and goal zone, optional obstacles, path overlay, traveled path, and status/event log
-- Continuous joystick-based motion controlled by the speed slider
-- Autonomous pick-and-place sequence with visible state transitions
-- A* path planning in a dedicated algorithms module
-- Randomized obstacle placement on reset for more varied demonstrations
-- Basic unit tests for the path planner
+* Dual-application architecture (Controller + Simulator)
+
+* Real-time UDP communication
+
+* Interactive PySide6 GUI with:
+
+  * Connect / Disconnect workflow
+  * Movement controls and joystick input
+  * Speed adjustment slider
+  * Arm and gripper controls
+  * Obstacle toggle
+  * Simulation reset
+  * Event logging
+
+* 2D Simulator environment with:
+
+  * Occupancy grid representation
+  * Robot visualization
+  * Object and goal zone
+  * Optional obstacles
+  * Path visualization (planned + executed)
+
+* Autonomous Pick-and-Place sequence:
+
+  1. Navigate to object
+  2. Pick object
+  3. Plan path using A*
+  4. Avoid obstacles
+  5. Deliver to goal
+
+* A* path planning implemented in a dedicated module
+
+* Randomized obstacle generation for dynamic testing
+
+* Basic unit testing for planner validation
+
+---
 
 ## Technologies
 
-- Python
-- PySide6
-- UDP sockets from Python standard library
-- A* path planning on a 2D grid
-- `unittest` for lightweight testing
+* Python
+* PySide6
+* UDP sockets (Python standard library)
+* A* path planning (grid-based)
+* `unittest`
+
+---
 
 ## Project Structure
 
 ```text
 robot_project/
-  README.md
   requirements.txt
   .gitignore
   algorithms/
-    __init__.py
     astar.py
   controller/
-    __init__.py
-    controller_ui.py
     main_controller.py
+    controller_ui.py
     udp_client.py
   simulator/
-    __init__.py
-    environment.py
     main_simulator.py
-    robot.py
     simulator_ui.py
+    environment.py
+    robot.py
     udp_server.py
   tests/
-    __init__.py
     test_astar.py
 ```
 
-### Module Summary
+---
 
-- `controller/`
-  Desktop operator interface and UDP command sender.
-- `simulator/`
-  Robot state, environment, rendering, UDP listener, and execution loop.
-- `algorithms/`
-  Path planning logic, currently implemented with A*.
-- `tests/`
-  Basic automated tests for planner behavior.
-
-## How the System Works
+## How It Works
 
 ### Controller
 
-The controller allows the user to configure a UDP endpoint and connect to the simulator. Until the user clicks `Connect`, motion and automation controls remain disabled. After disconnecting, controls are disabled again until the next connection.
+* Connects to the simulator via UDP
+* Sends real-time commands
+* Enables/disables controls based on connection state
 
-The controller can send commands such as:
+Supported commands include:
 
-- `move_forward`
-- `move_backward`
-- `turn_left`
-- `turn_right`
-- `stop`
-- `speed:<value>`
-- `arm_up`
-- `arm_down`
-- `grip_open`
-- `grip_close`
-- `obstacle_on`
-- `obstacle_off`
-- `auto_pick_and_place`
-- `reset_simulation`
-- `joystick:<x>:<y>`
+```
+move_forward, move_backward, turn_left, turn_right, stop
+speed:<value>
+arm_up, arm_down
+grip_open, grip_close
+obstacle_on, obstacle_off
+auto_pick_and_place
+reset_simulation
+joystick:<x>:<y>
+```
+
+---
 
 ### Simulator
 
-The simulator listens on UDP, updates robot state based on incoming commands, and continuously redraws the scene. It supports:
+* Listens for UDP commands
+* Updates robot state
+* Renders environment continuously
 
-- manual stepped movement using direction buttons
-- continuous motion using joystick streaming
-- object pickup and release visualization
-- obstacle toggling
-- autonomous pick-and-place execution
+Supports:
+
+* Manual control
+* Continuous joystick movement
+* Object manipulation
+* Autonomous execution
+
+---
 
 ### Path Planning
 
-The autonomous behavior uses A* on a 2D grid. Obstacles are treated as blocked cells, and the planner produces a path from the robot position to the target. The same planner is used for:
+A* is used on a 2D grid:
 
-- moving to the object
-- replanning from the object to the goal
+* Obstacles = blocked cells
+* Planner computes optimal path
+* Used for both:
 
-This logic is isolated in `algorithms/astar.py`, which keeps the project structure suitable for future extensions.
+  * Robot → Object
+  * Object → Goal
+
+Implemented in:
+
+```
+algorithms/astar.py
+```
+
+---
 
 ## Installation
 
-### 1. Clone the Repository
+### 1. Clone Repository
 
 ```bash
 git clone <your-repository-url>
 cd robot_project
 ```
 
-### 2. Create a Virtual Environment
+### 2. Create Virtual Environment
 
-On Windows:
+**Windows**
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 ```
 
-On macOS/Linux:
+**macOS / Linux**
 
 ```bash
 python3 -m venv .venv
@@ -155,6 +205,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+---
+
 ## How to Run
 
 Start the simulator first:
@@ -163,73 +215,64 @@ Start the simulator first:
 python simulator/main_simulator.py
 ```
 
-Then start the controller in a second terminal:
+Then start the controller:
 
 ```bash
 python controller/main_controller.py
 ```
 
-Default local settings:
+### Default Settings
 
-- Host: `127.0.0.1`
-- Port: `5005`
+* Host: `127.0.0.1`
+* Port: `5005`
 
-Typical usage:
+### Typical Workflow
 
-1. launch the simulator
-2. launch the controller
-3. click `Connect`
-4. use manual controls or the joystick
-5. toggle obstacle mode if desired
-6. trigger `Auto Pick & Place`
+1. Launch simulator
+2. Launch controller
+3. Click **Connect**
+4. Control manually or use joystick
+5. Enable obstacles if needed
+6. Run **Auto Pick & Place**
+
+---
 
 ## Testing
 
-The repository includes a small automated test module for the A* planner.
-
-Run tests with:
+Run unit tests:
 
 ```bash
 python -m unittest tests.test_astar
 ```
 
-## My Contribution
+---
 
-This repository represents my work in:
+## Author Contribution
 
-- designing the project structure and application split
-- implementing the controller GUI and simulator GUI in PySide6
-- building UDP-based communication between two desktop applications
-- implementing grid-based A* path planning
-- modeling the robot state, obstacle handling, and autonomous pick-and-place behavior
-- refining the project for demo/presentation use with clearer visuals and interaction flow
+This project demonstrates my ability to:
 
-## Repository Notes
+* Design modular software architecture
+* Develop GUI applications using PySide6
+* Implement inter-process communication via UDP
+* Build and integrate path planning algorithms
+* Model robot behavior and simulation environments
+* Prepare software systems for demonstration and presentation
 
-This project is designed to present programming and software design ability rather than full physical realism. The emphasis is on:
-
-- modular Python code
-- readable GUI logic
-- clear communication between components
-- algorithm integration in an interactive application
-
-## Demo
-
-### Simulator
-![Simulator](images/sim.png)
-
-### Controller
-![Controller](images/controller.png)
-
-### Robot Movement
-![Robot](images/moving.gif)
+---
 
 ## Future Work
 
-Potential next steps include:
+* Additional planning algorithms
+* More advanced robot kinematics
+* Sensor simulation
+* Data logging and telemetry
+* Improved environment generation
+* Packaging and deployment
 
-- additional planning algorithms beyond A*
-- richer robot kinematics or sensor simulation
-- telemetry and data logging
-- more advanced environment generation
-- packaging for easier distribution
+---
+
+## Notes
+
+This project focuses on software engineering and system design rather than physical realism.
+
+The goal is to provide a clear, interactive, and extensible robotics simulation platform.
