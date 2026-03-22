@@ -16,6 +16,7 @@ from controller.udp_client import UDPClient
 class ControllerApp:
     def __init__(self) -> None:
         self.client = UDPClient()
+        # UI controls stay disabled until the operator explicitly connects.
         self.connected = False
         self.window = ControllerWindow()
         self.window.connect_requested.connect(self.handle_connect)
@@ -37,6 +38,7 @@ class ControllerApp:
         if not self.connected:
             return
         try:
+            # Send a final stop in case the joystick was actively streaming.
             self.client.send("joystick:0.00:0.00")
             self.client.send("stop")
         except OSError:

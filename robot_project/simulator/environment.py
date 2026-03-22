@@ -43,6 +43,7 @@ class EnvironmentModel:
         return 0 <= x < self.grid_width and 0 <= y < self.grid_height
 
     def _generate_obstacles(self) -> Set[GridPoint]:
+        # Keep the start region, pickup object, and goal clear so each reset remains usable.
         blocked = {
             (1, 7),
             (2, 7),
