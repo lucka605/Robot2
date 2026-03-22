@@ -16,18 +16,40 @@ from controller.udp_client import UDPClient
 class ControllerApp:
     def __init__(self) -> None:
         self.client = UDPClient()
+        self.connected = False
         self.window = ControllerWindow()
         self.window.connect_requested.connect(self.handle_connect)
+        self.window.disconnect_requested.connect(self.handle_disconnect)
         self.window.command_requested.connect(self.handle_command)
         self.window.append_log("Ready. Start the simulator, then connect to it over UDP.")
 
     def handle_connect(self, host: str, port: int) -> None:
+        if self.connected:
+            self.handle_disconnect()
+            return
         self.client.configure(host, port)
+        self.connected = True
         self.window.set_connected(True, host, port)
         self.window.append_log(f"UDP target set to {host}:{port}")
         self.window.show_status(f"Connected target set to {host}:{port}")
 
+    def handle_disconnect(self) -> None:
+        if not self.connected:
+            return
+        try:
+            self.client.send("joystick:0.00:0.00")
+            self.client.send("stop")
+        except OSError:
+            pass
+        self.connected = False
+        self.window.set_connected(False, self.client.host, self.client.port)
+        self.window.append_log("Controller disconnected. Commands are disabled until reconnect.")
+        self.window.show_status("Disconnected. Reconnect to send commands.")
+
     def handle_command(self, command: str) -> None:
+        if not self.connected:
+            self.window.show_status("Connect first to send commands.")
+            return
         try:
             self.client.send(command)
             if command.startswith("joystick:"):

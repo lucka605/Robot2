@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 from typing import Set, Tuple
 
@@ -22,7 +23,7 @@ class EnvironmentModel:
     def reset(self) -> None:
         self.object_position = (10, 2)
         self.goal_position = (11, 7)
-        self.obstacles = self._default_obstacles()
+        self.obstacles = self._generate_obstacles()
         self.obstacle_mode = False
 
     def set_obstacle_mode(self, enabled: bool) -> None:
@@ -41,16 +42,18 @@ class EnvironmentModel:
         x, y = cell
         return 0 <= x < self.grid_width and 0 <= y < self.grid_height
 
-    def _default_obstacles(self) -> Set[GridPoint]:
-        return {
-            (5, 1),
-            (5, 2),
-            (5, 3),
-            (5, 4),
-            (5, 5),
-            (8, 4),
-            (8, 5),
-            (8, 6),
-            (9, 6),
-            (10, 6),
+    def _generate_obstacles(self) -> Set[GridPoint]:
+        blocked = {
+            (1, 7),
+            (2, 7),
+            (1, 6),
+            self.object_position,
+            self.goal_position,
         }
+        available = [
+            (x, y)
+            for x in range(self.grid_width)
+            for y in range(self.grid_height)
+            if (x, y) not in blocked
+        ]
+        return set(random.sample(available, k=10))

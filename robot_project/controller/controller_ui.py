@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QPushButton,
+    QScrollArea,
     QSlider,
     QStatusBar,
     QStyle,
@@ -106,6 +107,7 @@ class JoystickWidget(QWidget):
 
 class ControllerWindow(QMainWindow):
     connect_requested = Signal(str, int)
+    disconnect_requested = Signal()
     command_requested = Signal(str)
 
     def __init__(self) -> None:
@@ -118,8 +120,8 @@ class ControllerWindow(QMainWindow):
         self.show_status("Ready. Start the simulator, then connect.")
 
     def _build_ui(self) -> None:
-        central = QWidget()
-        root = QVBoxLayout(central)
+        content = QWidget()
+        root = QVBoxLayout(content)
         root.setContentsMargins(18, 18, 18, 18)
         root.setSpacing(14)
 
@@ -156,7 +158,11 @@ class ControllerWindow(QMainWindow):
         root.addLayout(bottom_row)
         root.addWidget(self.log_panel)
 
-        self.setCentralWidget(central)
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(content)
+        self.setCentralWidget(scroll_area)
+        self.set_controls_enabled(False)
 
     def _build_connect_box(self) -> QGroupBox:
         box = QGroupBox("Connect")
@@ -291,6 +297,9 @@ class ControllerWindow(QMainWindow):
         return label
 
     def _emit_connect(self) -> None:
+        if self.connect_button.text() == "Disconnect":
+            self.disconnect_requested.emit()
+            return
         host = self.ip_edit.text().strip() or "127.0.0.1"
         port_text = self.port_edit.text().strip() or "5005"
         try:
@@ -311,12 +320,27 @@ class ControllerWindow(QMainWindow):
 
     def set_connected(self, connected: bool, host: str, port: int) -> None:
         self.connection_label.setText(f"Connected to {host}:{port}" if connected else "Disconnected")
+        self.connect_button.setText("Disconnect" if connected else "Connect")
+        self.connect_button.setIcon(
+            self.style().standardIcon(QStyle.SP_DialogCancelButton if connected else QStyle.SP_DialogApplyButton)
+        )
+        self.ip_edit.setEnabled(not connected)
+        self.port_edit.setEnabled(not connected)
+        self.set_controls_enabled(connected)
+        if not connected:
+            self.obstacle_button.setChecked(False)
+            self.obstacle_button.setText("Obstacle Mode: OFF")
 
     def append_log(self, message: str) -> None:
         self.log_panel.append(message)
 
     def show_status(self, message: str) -> None:
         self.statusBar().showMessage(message)
+
+    def set_controls_enabled(self, enabled: bool) -> None:
+        for group_box in self.findChildren(QGroupBox):
+            if group_box.title() != "Connect" and group_box.title() != "Session":
+                group_box.setEnabled(enabled)
 
     def _apply_styles(self) -> None:
         self.setStyleSheet(

@@ -4,7 +4,7 @@ from typing import List, Tuple
 
 from PySide6.QtCore import QPointF, QTimer, Qt, QRectF
 from PySide6.QtGui import QColor, QPainter, QPaintEvent, QPen, QPolygonF
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QMainWindow, QPlainTextEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QMainWindow, QPlainTextEdit, QScrollArea, QVBoxLayout, QWidget
 
 from algorithms.astar import AStarPlanner
 from simulator.environment import EnvironmentModel
@@ -224,8 +224,8 @@ class SimulatorWindow(QMainWindow):
         super().closeEvent(event)
 
     def _build_ui(self) -> None:
-        central = QWidget()
-        root = QHBoxLayout(central)
+        content = QWidget()
+        root = QHBoxLayout(content)
         root.setContentsMargins(18, 18, 18, 18)
         root.setSpacing(16)
 
@@ -253,7 +253,11 @@ class SimulatorWindow(QMainWindow):
 
         root.addLayout(left_panel, 3)
         root.addLayout(right_panel, 2)
-        self.setCentralWidget(central)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(content)
+        self.setCentralWidget(scroll_area)
 
     def append_log(self, message: str) -> None:
         self.log_panel.appendPlainText(message)
